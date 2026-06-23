@@ -36,7 +36,63 @@ TLS channel + a high-entropy bootstrap secret.
 > low-entropy tokens stay safe, mutual auth without certs) and the issued credential
 > for a **NATS User JWT** (doc §3) — the `PolarToken.sign/verify` seam stays put.
 
-## Two modes
+## Remote control (PolarRemote) — "one device controls another"
+
+`PolarRemote` turns one device into a playback **receiver** (think Apple TV) and lets
+another device — or the `polar-remote` CLI — discover and drive it. Trust is a short
+**pairing code**: it's the TLS-PSK, so it both authenticates and encrypts in one step,
+with no certificates (works on iOS/tvOS/macOS — no `openssl`/`Process`).
+
+```sh
+# terminal A: a demo receiver (or an iOS app via the SDK)
+polar-remote receive --name living-room      # prints a pairing code, e.g. 4827-1593
+
+# terminal B: the simple pause/resume/next tool
+polar-remote list
+polar-remote status --code 4827-1593
+polar-remote next   --code 4827-1593
+polar-remote pause  --code 4827-1593
+polar-remote seek 0.5 --code 4827-1593
+```
+
+### SDK — receiver side (the "Apple TV")
+
+```swift
+import PolarRemote
+
+final class MyPlayerBridge: PlaybackTarget {
+    func handleRemoteCommand(_ c: PlaybackCommand) { /* drive your AVPlayer */ }
+    func currentPlaybackStatus() -> PlaybackStatus { /* snapshot your player */ }
+}
+
+let receiver = PolarRemoteReceiver(name: "Living Room", pairingCode: PolarPSK.generatePairingCode())
+receiver.target = bridge
+try receiver.start()                 // advertises _polar-remote._tcp
+print("pair with:", receiver.code)   // show on screen
+// on every local playback change:
+receiver.publishStatus(bridge.currentPlaybackStatus())
+```
+
+### SDK — controller side (the other device)
+
+```swift
+let controller = PolarRemoteController()
+controller.onStatus = { status in /* update UI */ }
+let devices = try await controller.discover()
+try await controller.connect(to: devices[0], pairingCode: "4827-1593")  // wrong code → throws
+try await controller.send(.next)
+try await controller.send(.pause)
+```
+
+A wrong pairing code can't complete the PSK handshake, so it can neither read status nor
+send commands — and it now fails fast instead of hanging. mDNS spoofing is defeated for
+the same reason (a fake advertiser doesn't hold the code).
+
+> **ShangDynasty integration** lives in that app under `polarstart/PolarRemote/`:
+> `RemotePlaybackBridge` wires `MusicPlayer.shared` to a `PolarRemoteReceiver`, and
+> `RemoteControlViewController` is the pair/control UI (reached from the Music tab).
+
+## Two modes (enrollment control plane)
 
 **Paste mode (simplest)** — start a cmd, paste a token, the first client that comes
 up takes it; after that it's retired. Paste another to serve again. The "token" is

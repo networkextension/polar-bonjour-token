@@ -31,6 +31,9 @@ public struct PolarCredentials: Sendable {
 /// comes from (a) pinning the TLS leaf cert to the `fp` advertised in TXT and (b) a
 /// high-entropy single-use bootstrap token the CP checks. The PAKE upgrade slots in
 /// at `enroll(...)` without changing this surface.
+/// Cross-platform default node id (`Host` is macOS/Linux-only).
+public let defaultNodeID: String = ProcessInfo.processInfo.hostName
+
 public final class PolarEnroller {
     private let clusterID: String
     private let queue = DispatchQueue(label: "polar.enroller")
@@ -94,7 +97,7 @@ public final class PolarEnroller {
 
     /// Full flow: discover → pinned TLS connect → submit bootstrap + fresh node key → receive token.
     public func enroll(bootstrap: String,
-                       nodeID: String = Host.current().localizedName ?? "polar-node",
+                       nodeID: String = defaultNodeID,
                        info: [String: String] = [:],
                        timeout: TimeInterval = 8) async throws -> PolarCredentials {
         let cp = try await discover(timeout: timeout)
@@ -150,7 +153,7 @@ public final class PolarEnroller {
     /// Discover the control plane, then poll until the operator pastes a token and
     /// this client claims it. Returns the raw pasted string (no verification — the
     /// trust here is: we pinned the CP's cert, and the operator armed it by hand).
-    public func fetchPastedToken(nodeID: String = Host.current().localizedName ?? "polar-node",
+    public func fetchPastedToken(nodeID: String = defaultNodeID,
                                  timeout: TimeInterval = 120,
                                  pollInterval: TimeInterval = 1) async throws -> String {
         let cp = try await discover(timeout: min(timeout, 10))
