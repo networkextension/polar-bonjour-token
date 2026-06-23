@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+*.p12
+*.pem
+*.der
