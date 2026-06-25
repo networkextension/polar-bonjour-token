@@ -69,6 +69,9 @@ public final class PolarRemoteController {
     /// A wrong pairing code fails here (the PSK handshake never completes) within `timeout`.
     public func connect(to receiver: RemoteReceiverInfo, pairingCode: String,
                         timeout: TimeInterval = 6) async throws {
+        // Tear down any prior connection so a reconnect / re-tap starts clean.
+        self.connection?.cancel()
+        self.connection = nil
         let params = PolarPSK.parameters(pairingCode: pairingCode, identity: PolarRemoteService.pskIdentity)
         let conn = NWConnection(to: receiver.endpoint, using: params)
         self.connection = conn
