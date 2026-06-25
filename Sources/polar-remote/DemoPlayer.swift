@@ -13,6 +13,7 @@ final class DemoPlayer: PlaybackTarget {
     private var index = 0
     private var isPlaying = true
     private var currentTime = 0.0
+    private var volume = 1.0
 
     /// Notified after every state change so the receiver can push status to controllers.
     var onChange: ((PlaybackStatus) -> Void)?
@@ -29,6 +30,9 @@ final class DemoPlayer: PlaybackTarget {
             if currentTime > 3 { currentTime = 0 }
             else { index = (index - 1 + tracks.count) % tracks.count; currentTime = 0 }
         case .seek:      currentTime = (command.fraction ?? 0) * tracks[index].dur
+        case .volumeUp:   volume = min(1, volume + 0.1)
+        case .volumeDown: volume = max(0, volume - 0.1)
+        case .setVolume:  volume = max(0, min(1, command.fraction ?? volume))
         case .status:    break
         }
         let snapshot = statusLocked()

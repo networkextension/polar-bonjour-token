@@ -18,9 +18,10 @@ public enum PolarRemoteService {
 public struct PlaybackCommand: Codable, Sendable, Equatable {
     public enum Action: String, Codable, Sendable {
         case playPause, play, pause, next, previous, stop, seek, status
+        case volumeUp, volumeDown, setVolume
     }
     public var action: Action
-    public var fraction: Double?   // for .seek (0…1)
+    public var fraction: Double?   // for .seek (0…1) and .setVolume (0…1)
 
     public init(_ action: Action, fraction: Double? = nil) {
         self.action = action
@@ -34,8 +35,14 @@ public struct PlaybackCommand: Codable, Sendable, Equatable {
     public static let previous  = PlaybackCommand(.previous)
     public static let stop      = PlaybackCommand(.stop)
     public static let status    = PlaybackCommand(.status)
+    public static let volumeUp   = PlaybackCommand(.volumeUp)
+    public static let volumeDown = PlaybackCommand(.volumeDown)
     public static func seek(_ fraction: Double) -> PlaybackCommand {
         PlaybackCommand(.seek, fraction: fraction)
+    }
+    /// Set absolute volume (0…1).
+    public static func setVolume(_ level: Double) -> PlaybackCommand {
+        PlaybackCommand(.setVolume, fraction: max(0, min(1, level)))
     }
 }
 
